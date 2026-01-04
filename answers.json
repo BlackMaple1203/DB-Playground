@@ -156,8 +156,8 @@
     },
     {
         "id": 32,
-        "question": "查询所有的有选课的学生的详细信息",
-        "sql": "SELECT s.* FROM STUDENTS s WHERE EXISTS (SELECT 1 FROM CHOICES c WHERE c.sid = s.sid);"
+        "question": "查询所有的有选课的学生的详细信息（显示前100条）",
+        "sql": "SELECT s.* FROM STUDENTS s WHERE EXISTS (SELECT 1 FROM CHOICES c WHERE c.sid = s.sid) LIMIT 100;"
     },
     {
         "id": 33,

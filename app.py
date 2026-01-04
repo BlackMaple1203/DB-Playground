@@ -110,6 +110,14 @@ def init_history_table():
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             );
         """)
+        
+        # Create marked questions table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS MARKED_QUESTIONS (
+                question_id INTEGER PRIMARY KEY,
+                marked_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
         conn.commit()
     except Exception as e:
         st.error(f"History table init failed: {e}")
@@ -157,6 +165,38 @@ def get_solved_questions():
     finally:
         conn.close()
 
+def get_marked_questions():
+    """获取所有被标记的题目ID"""
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT question_id FROM MARKED_QUESTIONS")
+        marked_ids = {row[0] for row in cursor.fetchall()}
+        return marked_ids
+    except Exception:
+        return set()
+    finally:
+        conn.close()
+
+def toggle_question_mark(question_id):
+    """切换题目的标记状态"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        # Check if already marked
+        cursor.execute("SELECT COUNT(*) FROM MARKED_QUESTIONS WHERE question_id = ?", (question_id,))
+        if cursor.fetchone()[0] > 0:
+            # Remove mark
+            cursor.execute("DELETE FROM MARKED_QUESTIONS WHERE question_id = ?", (question_id,))
+        else:
+            # Add mark
+            cursor.execute("INSERT INTO MARKED_QUESTIONS (question_id) VALUES (?)", (question_id,))
+        conn.commit()
+    except Exception as e:
+        st.error(f"Failed to toggle mark: {e}")
+    finally:
+        conn.close()
+
 def load_questions():
     questions = []
     
@@ -200,10 +240,13 @@ def get_table_list():
     conn = get_connection()
     try:
         tables = pd.read_sql_query(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('sqlite_sequence', 'USER_HISTORY');",
+            "SELECT name FROM sqlite_master WHERE type='table';",
             conn
         )
-        return tables['name'].tolist()
+        all_tables = tables['name'].tolist()
+        # Filter for desired tables (case-insensitive match)
+        target_tables = {'students', 'teachers', 'courses', 'choices'}
+        return [t for t in all_tables if t.lower() in target_tables]
     except Exception as e:
         st.error(f"获取表列表失败: {e}")
         return []
@@ -246,10 +289,12 @@ if st.session_state.current_index >= len(questions):
 
 # 题目选择
 solved_ids = get_solved_questions()
+marked_ids = get_marked_questions()
 question_titles = []
 for q in questions:
     prefix = "✅ " if q['id'] in solved_ids else ""
-    question_titles.append(f"{prefix}{q['id'] + 1}. {q['title']}")
+    marker = "⚠️ " if q['id'] in marked_ids else ""
+    question_titles.append(f"{marker}{prefix}{q['id'] + 1}. {q['title']}")
 
 def prev_question():
     if st.session_state.current_index > 0:
@@ -282,7 +327,17 @@ with col_nav3:
     st.button("下一题", on_click=next_question, disabled=st.session_state.current_index == len(questions) - 1, width='stretch')
 
 st.markdown(f"### 题目 {current_q['id'] + 1}: {current_q['title']}")
-# st.info(current_q['description']) 
+
+# Mark button
+col_title, col_mark = st.columns([4, 1])
+with col_mark:
+    marked_ids = get_marked_questions()
+    is_marked = current_q['id'] in marked_ids
+    mark_label = "⚠️ 取消标记" if is_marked else "标记"
+    mark_type = "secondary" if is_marked else "primary"
+    if st.button(mark_label, key=f"mark_{current_q['id']}", width='stretch', type=mark_type):
+        toggle_question_mark(current_q['id'])
+        st.rerun() 
 
 # Layout control
 split_ratio = st.sidebar.slider("调整布局比例 (左:右)", 0.1, 0.9, 0.5, 0.05)
