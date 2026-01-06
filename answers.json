@@ -192,7 +192,7 @@
     {
         "id": 39,
         "question": "查询选修C++课程的成绩比姓名为znkoo的学生高的所有学生的编号和姓名",
-        "sql": "SELECT s.sid, s.sname FROM STUDENTS s JOIN CHOICES c ON s.sid = c.sid JOIN COURSES co ON c.cid = co.cid WHERE co.cname = 'c++' AND c.score > (SELECT c2.score FROM CHOICES c2 JOIN STUDENTS s2 ON c2.sid = s2.sid JOIN COURSES co2 ON c2.cid = co2.cid WHERE s2.sname = 'znkoo' AND co2.cname = 'c++');"
+        "sql": "SELECT distinct s.sid, s.sname FROM STUDENTS s JOIN CHOICES c ON s.sid = c.sid JOIN COURSES co ON c.cid = co.cid WHERE co.cname = 'c++' AND c.score > (SELECT c2.score FROM CHOICES c2 JOIN STUDENTS s2 ON c2.sid = s2.sid JOIN COURSES co2 ON c2.cid = co2.cid WHERE s2.sname = 'znkoo' AND co2.cname = 'c++');"
     },
     {
         "id": 40,
